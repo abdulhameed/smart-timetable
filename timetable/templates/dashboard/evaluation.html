@@ -1,0 +1,254 @@
+{% extends "base.html" %}
+{% block title %}Evaluation — {{ timetable.name }}{% endblock %}
+{% block nav_schedule %}active{% endblock %}
+
+{% block extra_head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js" defer></script>
+{{ chart_labels_json|json_script:"chart-labels" }}
+{{ chart_values_json|json_script:"chart-values" }}
+{% endblock %}
+
+{% block content %}
+<div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:1rem;margin-bottom:2rem">
+  <div>
+    <a href="{% url 'scheduling:result' timetable.pk %}" style="font-size:0.8rem;color:var(--ink-soft)">← Results</a>
+    <h1 style="font-size:1.3rem;margin:.4rem 0 .2rem">Evaluation Dashboard</h1>
+    <p style="color:var(--ink-soft);font-size:0.8rem">
+      {{ timetable.name }} · {{ timetable.academic_session }} ·
+      <span class="badge badge-{{ timetable.status|lower }}">{{ timetable.get_status_display }}</span>
+    </p>
+  </div>
+  <div style="display:flex;gap:.5rem">
+    <a href="{% url 'exports:pdf' timetable.pk %}" class="btn" hx-boost="false">Export PDF</a>
+    <a href="{% url 'exports:excel' timetable.pk %}" class="btn" hx-boost="false">Export Excel</a>
+  </div>
+</div>
+
+<!-- ── Metric cards ───────────────────────────────────────── -->
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:.75rem;margin-bottom:2rem">
+  {% with m=metrics %}
+
+  <div class="card border">
+    <div style="font-size:0.65rem;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-soft);margin-bottom:.3rem">Scheduled</div>
+    <div style="font-size:1.8rem;font-variant-numeric:tabular-nums">{{ m.scheduled_count|default:"—" }}</div>
+    <div style="font-size:0.7rem;color:var(--ink-soft)">sessions placed</div>
+  </div>
+
+  <div class="card border {% if timetable.unscheduled_count %}" style="border-color:var(--accent){% endif %}">
+    <div style="font-size:0.65rem;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-soft);margin-bottom:.3rem">Unscheduled</div>
+    <div style="font-size:1.8rem;font-variant-numeric:tabular-nums;{% if timetable.unscheduled_count %}color:var(--accent){% endif %}">
+      {{ timetable.unscheduled_count|default:"0" }}
+    </div>
+    <div style="font-size:0.7rem;color:var(--ink-soft)">not placed</div>
+  </div>
+
+  <div class="card border">
+    <div style="font-size:0.65rem;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-soft);margin-bottom:.3rem">Hard Violations</div>
+    <div style="font-size:1.8rem;font-variant-numeric:tabular-nums">{{ timetable.hard_violations }}</div>
+    <div style="font-size:0.7rem;color:var(--ink-soft)">must be zero</div>
+  </div>
+
+  <div class="card border">
+    <div style="font-size:0.65rem;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-soft);margin-bottom:.3rem">Soft Score</div>
+    <div style="font-size:1.8rem;font-variant-numeric:tabular-nums">{{ timetable.soft_score }}</div>
+    <div style="font-size:0.7rem;color:var(--ink-soft)">lower = better</div>
+  </div>
+
+  <div class="card border">
+    <div style="font-size:0.65rem;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-soft);margin-bottom:.3rem">Gen. Time</div>
+    <div style="font-size:1.8rem;font-variant-numeric:tabular-nums">{{ timetable.generation_time_ms }}</div>
+    <div style="font-size:0.7rem;color:var(--ink-soft)">milliseconds</div>
+  </div>
+
+  <div class="card border">
+    <div style="font-size:0.65rem;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-soft);margin-bottom:.3rem">Venue Util.</div>
+    <div style="font-size:1.8rem;font-variant-numeric:tabular-nums">{{ m.venue_utilisation_pct|default:"—" }}%</div>
+    <div style="font-size:0.7rem;color:var(--ink-soft)">of all slots</div>
+  </div>
+
+  <div class="card border">
+    <div style="font-size:0.65rem;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-soft);margin-bottom:.3rem">Back-to-Back</div>
+    <div style="font-size:1.8rem;font-variant-numeric:tabular-nums">{{ m.back_to_back_count|default:"—" }}</div>
+    <div style="font-size:0.7rem;color:var(--ink-soft)">adjacencies</div>
+  </div>
+
+  {% endwith %}
+</div>
+
+<!-- ── Charts ─────────────────────────────────────────────── -->
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:2rem">
+
+  <!-- Per-day load -->
+  <div class="card border">
+    <div style="font-size:0.7rem;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-soft);margin-bottom:.75rem">
+      Sessions per day
+    </div>
+    <canvas id="perDayChart" height="140"></canvas>
+  </div>
+
+  <!-- Back-to-back per lecturer -->
+  <div class="card border">
+    <div style="font-size:0.7rem;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-soft);margin-bottom:.75rem">
+      Back-to-back adjacencies per lecturer
+    </div>
+    {% if btb_list %}
+    <table style="font-size:0.8rem">
+      <thead>
+        <tr>
+          <th style="text-align:left;padding:.2rem .4rem">Lecturer</th>
+          <th style="text-align:right;padding:.2rem .4rem">Count</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for name, count in btb_list %}
+        <tr>
+          <td style="padding:.2rem .4rem">{{ name }}</td>
+          <td style="text-align:right;font-variant-numeric:tabular-nums;padding:.2rem .4rem">{{ count }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p style="color:var(--ink-soft);font-size:0.85rem">No back-to-back sessions.</p>
+    {% endif %}
+  </div>
+
+</div>
+
+<!-- ── Baseline comparison ────────────────────────────────── -->
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:2rem">
+
+  <!-- Baseline input form -->
+  <div class="card border">
+    <div style="font-size:0.7rem;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-soft);margin-bottom:.75rem">
+      Manual Baseline Input
+    </div>
+    <p style="font-size:0.8rem;color:var(--ink-soft);margin-bottom:1rem">
+      Record the outcome of a manually constructed timetable to quantify the system's improvement.
+    </p>
+    <form method="post">
+      {% csrf_token %}
+      {% include "partials/_form_field.html" with field=form.manual_conflicts %}
+      {% include "partials/_form_field.html" with field=form.manual_time_minutes %}
+      {% include "partials/_form_field.html" with field=form.manual_sessions_scheduled %}
+      {% include "partials/_form_field.html" with field=form.notes %}
+      <button type="submit" class="btn btn-primary" style="margin-top:.5rem">Save Baseline</button>
+    </form>
+  </div>
+
+  <!-- Comparison table -->
+  <div class="card border">
+    <div style="font-size:0.7rem;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-soft);margin-bottom:.75rem">
+      Manual vs Generated Comparison
+    </div>
+    {% if baseline.manual_time_minutes or baseline.manual_conflicts or baseline.manual_sessions_scheduled %}
+    <table style="font-size:0.82rem">
+      <thead>
+        <tr>
+          <th>Metric</th>
+          <th style="text-align:right">Generated</th>
+          <th style="text-align:right">Manual</th>
+          <th style="text-align:right">Improvement</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Hard violations</td>
+          <td style="text-align:right;font-variant-numeric:tabular-nums">{{ timetable.hard_violations }}</td>
+          <td style="text-align:right;font-variant-numeric:tabular-nums">{{ baseline.manual_conflicts }}</td>
+          <td style="text-align:right;color:{% if baseline.conflict_reduction > 0 %}#2D6A4F{% else %}var(--ink-soft){% endif %}">
+            {% if baseline.conflict_reduction > 0 %}−{{ baseline.conflict_reduction }}
+              {% if baseline.conflict_reduction_pct %}({{ baseline.conflict_reduction_pct }}%){% endif %}
+            {% else %}—{% endif %}
+          </td>
+        </tr>
+        <tr>
+          <td>Sessions scheduled</td>
+          <td style="text-align:right;font-variant-numeric:tabular-nums">{{ timetable.scheduled_count }}</td>
+          <td style="text-align:right;font-variant-numeric:tabular-nums">{{ baseline.manual_sessions_scheduled }}</td>
+          <td style="text-align:right;color:{% if baseline.session_delta > 0 %}#2D6A4F{% else %}var(--ink-soft){% endif %}">
+            {% if baseline.session_delta > 0 %}+{{ baseline.session_delta }}{% elif baseline.session_delta == 0 %}={% else %}{{ baseline.session_delta }}{% endif %}
+          </td>
+        </tr>
+        <tr>
+          <td>Construction time</td>
+          <td style="text-align:right;font-variant-numeric:tabular-nums">{{ timetable.generation_time_ms }}ms</td>
+          <td style="text-align:right;font-variant-numeric:tabular-nums">{{ baseline.manual_time_minutes }}min</td>
+          <td style="text-align:right;color:#2D6A4F">
+            {% if baseline.time_speedup_x %}{{ baseline.time_speedup_x|floatformat:"0" }}× faster{% else %}—{% endif %}
+          </td>
+        </tr>
+        <tr>
+          <td>Soft score</td>
+          <td style="text-align:right;font-variant-numeric:tabular-nums">{{ timetable.soft_score }}</td>
+          <td style="text-align:right;color:var(--ink-soft)">—</td>
+          <td style="text-align:right;color:var(--ink-soft)">—</td>
+        </tr>
+        <tr>
+          <td>Venue utilisation</td>
+          <td style="text-align:right;font-variant-numeric:tabular-nums">{{ timetable.metrics.venue_utilisation_pct|default:"—" }}%</td>
+          <td style="text-align:right;color:var(--ink-soft)">—</td>
+          <td style="text-align:right;color:var(--ink-soft)">—</td>
+        </tr>
+      </tbody>
+    </table>
+    {% if baseline.notes %}
+    <div style="margin-top:1rem;padding:.5rem;background:var(--surface);border:1px solid var(--rule);font-size:0.8rem;color:var(--ink-soft)">
+      {{ baseline.notes }}
+    </div>
+    {% endif %}
+    {% else %}
+    <p style="color:var(--ink-soft);font-size:0.85rem">
+      Enter manual baseline values on the left to see the comparison.
+    </p>
+    {% endif %}
+  </div>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  const labels = JSON.parse(document.getElementById('chart-labels').textContent);
+  const values = JSON.parse(document.getElementById('chart-values').textContent);
+  if (!labels.length) return;
+
+  const ctx = document.getElementById('perDayChart').getContext('2d');
+  new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: 'Sessions',
+        data: values,
+        backgroundColor: 'rgba(199,64,31,0.18)',
+        borderColor: '#C7401F',
+        borderWidth: 1,
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { display: false },
+        tooltip: { bodyFont: { family: "'IBM Plex Mono', monospace" } },
+      },
+      scales: {
+        y: {
+          beginAtZero: true,
+          ticks: {
+            stepSize: 1,
+            font: { family: "'IBM Plex Mono', monospace", size: 11 }
+          },
+          grid: { color: '#D7D2C6' },
+        },
+        x: {
+          ticks: { font: { family: "'IBM Plex Mono', monospace", size: 11 } },
+          grid: { display: false },
+        }
+      }
+    }
+  });
+});
+</script>
+{% endblock %}
