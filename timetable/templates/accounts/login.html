@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Login — Timetable System{% endblock %}
+
+{% block content %}
+<div style="min-height:80vh;display:flex;align-items:center;justify-content:center;">
+  <div class="card shadow" style="width:100%;max-width:380px;">
+    <h1 style="font-size:1.4rem;margin-bottom:0.25rem;">Timetable System</h1>
+    <p style="color:var(--ink-soft);font-size:0.8rem;margin-bottom:1.5rem;">
+      Smart scheduling for university departments.
+    </p>
+
+    {% if form.errors %}
+    <div class="alert alert-error">Invalid username or password.</div>
+    {% endif %}
+
+    <form method="post" novalidate>
+      {% csrf_token %}
+      <div style="margin-bottom:1rem;">
+        <label for="{{ form.username.id_for_label }}">Username</label>
+        {{ form.username }}
+      </div>
+      <div style="margin-bottom:1.5rem;">
+        <label for="{{ form.password.id_for_label }}">Password</label>
+        {{ form.password }}
+      </div>
+      <button type="submit" class="btn btn-primary" style="width:100%;">Sign in</button>
+    </form>
+  </div>
+</div>
+{% endblock %}
