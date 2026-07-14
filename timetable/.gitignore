@@ -1,0 +1,12 @@
+.env
+*.pyc
+__pycache__/
+*.sqlite3
+.venv/
+.pytest_cache/
+dist/
+*.egg-info/
+staticfiles/
+media/
+exports/*.pdf
+exports/*.xlsx

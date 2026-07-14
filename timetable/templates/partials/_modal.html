@@ -1,0 +1,18 @@
+{% comment %}
+Shared modal shell. Wrap form content in this via {% include %} with block overrides,
+or use directly in partial responses targeted at #modal.
+{% endcomment %}
+<div style="position:fixed;inset:0;background:rgba(30,30,28,.45);z-index:50;
+            display:flex;align-items:center;justify-content:center;padding:1rem"
+     x-data="{}"
+     @keydown.escape.window="document.getElementById('modal').innerHTML=''">
+  <div class="card shadow" style="width:100%;max-width:500px;max-height:90vh;overflow-y:auto">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem">
+      <h2 style="font-size:1.1rem">{{ title }}</h2>
+      <button type="button" class="btn"
+              style="padding:.2rem .5rem;font-size:1rem"
+              @click="document.getElementById('modal').innerHTML=''">✕</button>
+    </div>
+    {% block modal_content %}{% endblock %}
+  </div>
+</div>

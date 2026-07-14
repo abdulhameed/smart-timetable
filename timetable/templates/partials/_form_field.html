@@ -1,0 +1,13 @@
+{% comment %}
+Usage: {% include "partials/_form_field.html" with field=form.name %}
+{% endcomment %}
+<div style="margin-bottom:1rem">
+  <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+  {{ field }}
+  {% if field.errors %}
+    <div style="font-size:0.75rem;color:var(--accent);margin-top:0.25rem">{{ field.errors.0 }}</div>
+  {% endif %}
+  {% if field.help_text %}
+    <div style="font-size:0.75rem;color:var(--ink-soft);margin-top:0.2rem">{{ field.help_text }}</div>
+  {% endif %}
+</div>

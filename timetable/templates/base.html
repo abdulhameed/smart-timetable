@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Timetable System{% endblock %}</title>
+
+  {% load static %}
+  <link rel="stylesheet" href="{% static 'css/tokens.css' %}">
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
+
+  <!-- HTMX -->
+  <script src="https://unpkg.com/htmx.org@2.0.4" defer></script>
+  <!-- Alpine.js -->
+  <script defer src="https://unpkg.com/alpinejs@3.14.3/dist/cdn.min.js"></script>
+
+  {% block extra_head %}{% endblock %}
+</head>
+<body hx-boost="true">
+
+{% if user.is_authenticated %}
+<nav class="nav" x-data="{ dataOpen: false }">
+  <a href="{% url 'core:dashboard' %}" class="nav-brand">Timetable System</a>
+
+  <a href="{% url 'core:dashboard' %}"
+     class="nav-link {% block nav_dashboard %}{% endblock %}">Dashboard</a>
+
+  <!-- Data dropdown -->
+  <div style="position:relative" @mouseleave="dataOpen=false">
+    <button @mouseenter="dataOpen=true" @click="dataOpen=!dataOpen"
+            class="nav-link {% block nav_data %}{% endblock %}"
+            style="background:none;border:none;cursor:pointer;height:3rem">
+      Data ▾
+    </button>
+    <div x-show="dataOpen" x-cloak
+         style="position:absolute;top:3rem;left:0;min-width:160px;z-index:100;
+                background:var(--surface);border:1px solid var(--rule-strong);
+                box-shadow:var(--shadow)">
+      <a href="{% url 'catalog:course-list' %}"
+         style="display:block;padding:.5rem .75rem;font-size:0.85rem;color:var(--ink);border-bottom:1px solid var(--rule)"
+         @click="dataOpen=false">Courses</a>
+      <a href="{% url 'catalog:lecturer-list' %}"
+         style="display:block;padding:.5rem .75rem;font-size:0.85rem;color:var(--ink);border-bottom:1px solid var(--rule)"
+         @click="dataOpen=false">Lecturers</a>
+      <a href="{% url 'catalog:venue-list' %}"
+         style="display:block;padding:.5rem .75rem;font-size:0.85rem;color:var(--ink);border-bottom:1px solid var(--rule)"
+         @click="dataOpen=false">Venues</a>
+      {% if request.user.is_admin %}
+      <a href="{% url 'core:department-list' %}"
+         style="display:block;padding:.5rem .75rem;font-size:0.85rem;color:var(--ink);border-bottom:1px solid var(--rule)"
+         @click="dataOpen=false">Departments</a>
+      <a href="{% url 'core:time-config' %}"
+         style="display:block;padding:.5rem .75rem;font-size:0.85rem;color:var(--ink)"
+         @click="dataOpen=false">Time Config</a>
+      {% endif %}
+    </div>
+  </div>
+
+  <a href="{% url 'scheduling:list' %}" class="nav-link {% block nav_schedule %}{% endblock %}">Schedule</a>
+
+  {% if request.user.is_admin %}
+  <a href="{% url 'admin:index' %}" class="nav-link">Admin</a>
+  {% endif %}
+
+  <form method="post" action="{% url 'accounts:logout' %}" style="display:inline;margin-left:auto">
+    {% csrf_token %}
+    <button type="submit" class="btn"
+            style="height:3rem;border:none;border-left:1px solid var(--rule);border-radius:0">
+      Logout
+    </button>
+  </form>
+</nav>
+{% endif %}
+
+<main class="container page">
+  {% for message in messages %}
+    <div class="alert alert-{% if message.tags == 'error' %}error{% else %}success{% endif %}">
+      {{ message }}
+    </div>
+  {% endfor %}
+
+  {% block content %}{% endblock %}
+</main>
+
+{% block extra_js %}{% endblock %}
+</body>
+</html>
