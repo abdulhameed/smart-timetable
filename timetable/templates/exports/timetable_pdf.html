@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<style>
+/* ===== PAGE SETUP ===== */
+@page {
+  size: A4 landscape;
+  margin: 1.4cm 1.2cm 1.8cm;
+  @bottom-center {
+    content: "{{ timetable.name }} — page " counter(page) " of " counter(pages);
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 7pt;
+    color: #4A4A46;
+  }
+}
+
+/* ===== DESIGN TOKENS (inline — no external CSS) ===== */
+:root {
+  --bg:          #F5F2EB;
+  --surface:     #FBF9F4;
+  --ink:         #1E1E1C;
+  --ink-soft:    #4A4A46;
+  --rule:        #D7D2C6;
+  --rule-strong: #B8B2A4;
+  --accent:      #C7401F;
+  --accent-tint: rgba(199,64,31,.10);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 8pt;
+  color: #1E1E1C;
+  background: #F5F2EB;
+}
+
+/* ===== HEADER ===== */
+.doc-header {
+  margin-bottom: 10pt;
+  padding-bottom: 6pt;
+  border-bottom: 1.5pt solid #B8B2A4;
+}
+.doc-title {
+  font-family: Georgia, Times, serif;
+  font-size: 14pt;
+  font-weight: bold;
+  color: #1E1E1C;
+  margin-bottom: 3pt;
+}
+.doc-meta {
+  font-size: 7.5pt;
+  color: #4A4A46;
+}
+.doc-meta span { margin-right: 14pt; }
+
+/* ===== GRID TABLE ===== */
+table.tt {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  font-size: 7.5pt;
+}
+table.tt th {
+  background: #FBF9F4;
+  border: 0.5pt solid #D7D2C6;
+  border-bottom: 1pt solid #B8B2A4;
+  padding: 3pt 4pt;
+  font-size: 7pt;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  text-align: center;
+  font-weight: bold;
+}
+table.tt td {
+  border: 0.5pt solid #D7D2C6;
+  vertical-align: top;
+  padding: 3pt;
+}
+.period-cell {
+  background: #FBF9F4;
+  border-right: 1pt solid #B8B2A4 !important;
+  text-align: center;
+  width: 46pt;
+  font-size: 7pt;
+  color: #4A4A46;
+}
+.period-num  { font-weight: bold; font-size: 8pt; color: #1E1E1C; }
+.period-time { font-size: 6.5pt; color: #4A4A46; }
+
+/* ===== ENTRY BLOCK ===== */
+.entry {
+  background: rgba(199,64,31,.08);
+  border: 0.5pt solid #C7401F;
+  padding: 2pt 3pt;
+  margin-bottom: 2pt;
+  font-size: 7pt;
+  line-height: 1.35;
+}
+.entry-code  { font-weight: bold; color: #C7401F; }
+.entry-meta  { color: #4A4A46; }
+.entry-span  { font-weight: normal; font-size: 6.5pt; }
+
+/* ===== METRICS STRIP ===== */
+.metrics {
+  margin-top: 10pt;
+  padding: 6pt 8pt;
+  border: 0.5pt solid #D7D2C6;
+  background: #FBF9F4;
+  font-size: 7pt;
+  color: #4A4A46;
+}
+.metrics span { margin-right: 18pt; }
+.metrics strong { color: #1E1E1C; }
+</style>
+</head>
+<body>
+
+<div class="doc-header">
+  <div class="doc-title">{{ timetable.name }}</div>
+  <div class="doc-meta">
+    <span>Session: <strong>{{ timetable.academic_session }}</strong></span>
+    <span>Status: <strong>{{ timetable.get_status_display }}</strong></span>
+    {% if timetable.generated_at %}
+    <span>Generated: <strong>{{ timetable.generated_at|date:"d M Y H:i" }}</strong></span>
+    {% endif %}
+  </div>
+</div>
+
+<table class="tt">
+  <thead>
+    <tr>
+      <th style="width:46pt">Period</th>
+      {% for _val, label in day_choices %}
+      <th>{{ label|slice:":3"|upper }}</th>
+      {% endfor %}
+    </tr>
+  </thead>
+  <tbody>
+    {% for row in grid %}
+    <tr>
+      <td class="period-cell">
+        <div class="period-num">P{{ row.period.index }}</div>
+        <div class="period-time">{{ row.period.start_time|time:"H:i" }}</div>
+      </td>
+      {% for cell in row.cells %}
+      <td>
+        {% for entry in cell.entries %}
+        <div class="entry">
+          <div class="entry-code">
+            {{ entry.course.code }}{% if entry.length > 1 %}<span class="entry-span"> ×{{ entry.length }}p</span>{% endif %}
+          </div>
+          <div class="entry-meta">{{ entry.lecturer.name }}</div>
+          <div class="entry-meta">{{ entry.venue.name }}</div>
+        </div>
+        {% endfor %}
+      </td>
+      {% endfor %}
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<div class="metrics">
+  <span>Sessions scheduled: <strong>{{ timetable.scheduled_count }}</strong></span>
+  <span>Unscheduled: <strong>{{ timetable.unscheduled_count }}</strong></span>
+  <span>Hard violations: <strong>{{ timetable.hard_violations }}</strong></span>
+  <span>Soft score: <strong>{{ timetable.soft_score }}</strong></span>
+  <span>Gen. time: <strong>{{ timetable.generation_time_ms }}ms</strong></span>
+  {% if timetable.metrics.venue_utilisation_pct %}
+  <span>Venue utilisation: <strong>{{ timetable.metrics.venue_utilisation_pct }}%</strong></span>
+  {% endif %}
+</div>
+
+</body>
+</html>
