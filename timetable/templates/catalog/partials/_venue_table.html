@@ -1,0 +1,30 @@
+{% if venues %}
+<table>
+  <thead>
+    <tr>
+      <th>Name</th><th>Type</th><th>Capacity</th><th>Location</th><th style="width:120px"></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for v in venues %}
+    <tr>
+      <td>{{ v.name }}</td>
+      <td><span class="badge">{{ v.get_venue_type_display }}</span></td>
+      <td class="mono">{{ v.capacity }}</td>
+      <td style="color:var(--ink-soft)">{{ v.location|default:"—" }}</td>
+      <td style="text-align:right">
+        <button class="btn" style="font-size:0.75rem;padding:.2rem .5rem"
+                hx-get="{% url 'catalog:venue-edit' v.pk %}"
+                hx-target="#modal">Edit</button>
+        <button class="btn btn-danger" style="font-size:0.75rem;padding:.2rem .5rem"
+                hx-post="{% url 'catalog:venue-delete' v.pk %}"
+                hx-confirm="Delete {{ v.name }}?"
+                hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>Del</button>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p style="color:var(--ink-soft);font-size:0.875rem">No venues yet.</p>
+{% endif %}

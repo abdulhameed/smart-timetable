@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}Lecturers — Timetable System{% endblock %}
+{% block nav_data %}active{% endblock %}
+
+{% block content %}
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem">
+  <div>
+    <h1 style="font-size:1.3rem;margin-bottom:.25rem">Lecturers</h1>
+    <p style="color:var(--ink-soft);font-size:0.8rem">
+      Click <strong>Avail.</strong> to set a lecturer's unavailability grid.
+    </p>
+  </div>
+  <button class="btn btn-primary"
+          hx-get="{% url 'catalog:lecturer-create' %}"
+          hx-target="#modal">+ New Lecturer</button>
+</div>
+
+<form method="get" style="display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:1rem">
+  <input type="text" name="q" value="{{ q }}" placeholder="Search lecturers…" style="max-width:240px">
+  <select name="dept" style="max-width:180px">
+    <option value="">All departments</option>
+    {% for d in departments %}
+    <option value="{{ d.pk }}" {% if dept == d.pk|stringformat:"s" %}selected{% endif %}>{{ d.code }}</option>
+    {% endfor %}
+  </select>
+  <button type="submit" class="btn">Filter</button>
+  {% if q or dept %}<a href="{% url 'catalog:lecturer-list' %}" class="btn">Clear</a>{% endif %}
+</form>
+
+<div hx-get="{% url 'catalog:lecturer-table' %}"
+     hx-trigger="refreshLecturers from:body"
+     hx-swap="innerHTML">
+  {% include "catalog/partials/_lecturer_table.html" %}
+</div>
+
+<div id="modal"></div>
+{% endblock %}

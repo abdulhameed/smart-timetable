@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}Venues — Timetable System{% endblock %}
+{% block nav_data %}active{% endblock %}
+
+{% block content %}
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem">
+  <div>
+    <h1 style="font-size:1.3rem;margin-bottom:.25rem">Venues</h1>
+    <p style="color:var(--ink-soft);font-size:0.8rem">Lecture halls, labs, and seminar rooms.</p>
+  </div>
+  <button class="btn btn-primary"
+          hx-get="{% url 'catalog:venue-create' %}"
+          hx-target="#modal">+ New Venue</button>
+</div>
+
+<form method="get" style="display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:1rem">
+  <input type="text" name="q" value="{{ q }}" placeholder="Search venues…" style="max-width:240px">
+  <select name="type" style="max-width:160px">
+    <option value="">All types</option>
+    {% for val, label in venue_types %}
+    <option value="{{ val }}" {% if vtype == val %}selected{% endif %}>{{ label }}</option>
+    {% endfor %}
+  </select>
+  <button type="submit" class="btn">Filter</button>
+  {% if q or vtype %}<a href="{% url 'catalog:venue-list' %}" class="btn">Clear</a>{% endif %}
+</form>
+
+<div hx-get="{% url 'catalog:venue-table' %}"
+     hx-trigger="refreshVenues from:body"
+     hx-swap="innerHTML">
+  {% include "catalog/partials/_venue_table.html" %}
+</div>
+
+<div id="modal"></div>
+{% endblock %}

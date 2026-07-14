@@ -1,0 +1,31 @@
+{% if lecturers %}
+<table>
+  <thead>
+    <tr>
+      <th>Name</th><th>Email</th><th>Department</th><th style="width:160px"></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for l in lecturers %}
+    <tr>
+      <td>{{ l.name }}</td>
+      <td class="mono" style="font-size:0.8rem">{{ l.email }}</td>
+      <td style="color:var(--ink-soft)">{{ l.department.code }}</td>
+      <td style="text-align:right">
+        <a href="{% url 'catalog:lecturer-availability' l.pk %}" class="btn"
+           style="font-size:0.75rem;padding:.2rem .5rem">Avail.</a>
+        <button class="btn" style="font-size:0.75rem;padding:.2rem .5rem"
+                hx-get="{% url 'catalog:lecturer-edit' l.pk %}"
+                hx-target="#modal">Edit</button>
+        <button class="btn btn-danger" style="font-size:0.75rem;padding:.2rem .5rem"
+                hx-post="{% url 'catalog:lecturer-delete' l.pk %}"
+                hx-confirm="Delete {{ l.name }}?"
+                hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>Del</button>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p style="color:var(--ink-soft);font-size:0.875rem">No lecturers yet.</p>
+{% endif %}

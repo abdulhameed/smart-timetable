@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}Availability — {{ lecturer.name }}{% endblock %}
+
+{% block content %}
+<div style="margin-bottom:1.5rem">
+  <a href="{% url 'catalog:lecturer-list' %}" style="font-size:0.8rem;color:var(--ink-soft)">← Lecturers</a>
+  <h1 style="font-size:1.3rem;margin:.5rem 0 .25rem">{{ lecturer.name }}</h1>
+  <p style="color:var(--ink-soft);font-size:0.8rem">
+    Click a cell to mark a period unavailable (
+    <span style="display:inline-block;width:.8rem;height:.8rem;background:var(--accent);vertical-align:middle"></span>
+    ) or available (
+    <span style="display:inline-block;width:.8rem;height:.8rem;background:var(--rule);vertical-align:middle"></span>
+    ).
+  </p>
+</div>
+
+{% if periods %}
+<div style="overflow-x:auto">
+  <table style="min-width:500px;border:1px solid var(--rule)">
+    <thead style="background:var(--surface)">
+      <tr>
+        <th style="width:90px;border-right:2px solid var(--rule-strong)">Day</th>
+        {% for period in periods %}
+        <th style="text-align:center;font-size:0.7rem;border-right:1px solid var(--rule)">
+          P{{ period.index }}<br>
+          <span style="color:var(--ink-soft);font-weight:400">{{ period.start_time|time:"H:i" }}</span>
+        </th>
+        {% endfor %}
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in grid %}
+      <tr style="border-top:{% if row.day_val == 'MON' %}2px{% else %}1px{% endif %} solid var(--rule)">
+        <td style="font-size:0.8rem;padding:.4rem .6rem;border-right:2px solid var(--rule-strong)">
+          {{ row.day_label }}
+        </td>
+        {% for cell in row.cells %}
+          {% include "catalog/partials/_availability_cell.html" with day=cell.day period=cell.period blocked=cell.blocked lecturer=lecturer %}
+        {% endfor %}
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="alert">
+  No periods configured.
+  <a href="{% url 'core:time-config' %}">Go to Time Configuration</a> to add periods first.
+</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}Courses — Timetable System{% endblock %}
+{% block nav_data %}active{% endblock %}
+
+{% block content %}
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem">
+  <div>
+    <h1 style="font-size:1.3rem;margin-bottom:.25rem">Courses</h1>
+    <p style="color:var(--ink-soft);font-size:0.8rem">All course offerings for the active session.</p>
+  </div>
+  <button class="btn btn-primary"
+          hx-get="{% url 'catalog:course-create' %}"
+          hx-target="#modal">+ New Course</button>
+</div>
+
+<form method="get" style="display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:1rem">
+  <input type="text" name="q" value="{{ q }}" placeholder="Code or title…" style="max-width:200px">
+  <select name="dept" style="max-width:160px">
+    <option value="">All departments</option>
+    {% for d in departments %}
+    <option value="{{ d.pk }}" {% if dept == d.pk|stringformat:"s" %}selected{% endif %}>{{ d.code }}</option>
+    {% endfor %}
+  </select>
+  <select name="session" style="max-width:200px">
+    <option value="">All sessions</option>
+    {% for s in sessions %}
+    <option value="{{ s.pk }}" {% if session_id == s.pk|stringformat:"s" %}selected{% endif %}>{{ s }}</option>
+    {% endfor %}
+  </select>
+  <button type="submit" class="btn">Filter</button>
+  {% if q or dept or session_id %}<a href="{% url 'catalog:course-list' %}" class="btn">Clear</a>{% endif %}
+</form>
+
+<div hx-get="{% url 'catalog:course-table' %}"
+     hx-trigger="refreshCourses from:body"
+     hx-swap="innerHTML">
+  {% include "catalog/partials/_course_table.html" %}
+</div>
+
+<div id="modal"></div>
+{% endblock %}

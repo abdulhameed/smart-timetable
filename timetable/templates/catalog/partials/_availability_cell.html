@@ -1,0 +1,14 @@
+<td id="cell-{{ day }}-{{ period.pk }}"
+    style="text-align:center;padding:.25rem;cursor:pointer"
+    hx-post="{% url 'catalog:lecturer-availability-toggle' lecturer.pk %}"
+    hx-vals='{"day": "{{ day }}", "period_id": "{{ period.pk }}"}'
+    hx-target="#cell-{{ day }}-{{ period.pk }}"
+    hx-swap="outerHTML"
+    hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'
+    title="{% if blocked %}Unavailable — click to unblock{% else %}Available — click to block{% endif %}">
+  {% if blocked %}
+  <span style="display:inline-block;width:1.2rem;height:1.2rem;background:var(--accent);"></span>
+  {% else %}
+  <span style="display:inline-block;width:1.2rem;height:1.2rem;background:var(--rule);"></span>
+  {% endif %}
+</td>

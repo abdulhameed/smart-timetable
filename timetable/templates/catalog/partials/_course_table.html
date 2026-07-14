@@ -1,0 +1,35 @@
+{% if courses %}
+<table>
+  <thead>
+    <tr>
+      <th>Code</th><th>Title</th><th>Dept</th><th>Size</th>
+      <th>Sessions</th><th>Lecturers</th><th style="width:120px"></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for c in courses %}
+    <tr>
+      <td class="mono">{{ c.code }}</td>
+      <td>{{ c.title }}</td>
+      <td style="color:var(--ink-soft)">{{ c.department.code }}</td>
+      <td class="mono">{{ c.class_size }}</td>
+      <td class="mono">{{ c.weekly_sessions }}×P{{ c.session_length }}</td>
+      <td style="font-size:0.8rem;color:var(--ink-soft)">
+        {% for l in c.lecturers.all %}{{ l.name }}{% if not forloop.last %}, {% endif %}{% empty %}—{% endfor %}
+      </td>
+      <td style="text-align:right">
+        <button class="btn" style="font-size:0.75rem;padding:.2rem .5rem"
+                hx-get="{% url 'catalog:course-edit' c.pk %}"
+                hx-target="#modal">Edit</button>
+        <button class="btn btn-danger" style="font-size:0.75rem;padding:.2rem .5rem"
+                hx-post="{% url 'catalog:course-delete' c.pk %}"
+                hx-confirm="Delete {{ c.code }}?"
+                hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>Del</button>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p style="color:var(--ink-soft);font-size:0.875rem">No courses yet.</p>
+{% endif %}
