@@ -1,0 +1,45 @@
+{% comment %}
+Renders the <tr> rows for the timetable grid.
+Required context: grid, day_choices, timetable.
+When timetable.status == 'DRAFT' and user is officer, entries are draggable.
+{% endcomment %}
+{% for row in grid %}
+<tr style="border-top:1px solid var(--rule)">
+  <td class="tt-period-cell">
+    <span style="display:block;font-weight:600">P{{ row.period.index }}</span>
+    <span style="color:var(--ink-soft)">{{ row.period.start_time|time:"H:i" }}</span>
+  </td>
+  {% for cell in row.cells %}
+  <td class="tt-slot"
+      id="cell-{{ cell.day }}-{{ row.period.index }}"
+      {% if timetable.status == 'DRAFT' and request.user.is_officer %}
+      x-data="{ over: false }"
+      @dragover.prevent="over=true"
+      @dragleave="over=false"
+      @drop.prevent="
+        over=false;
+        moveEntry($event, {{ timetable.pk }}, '{{ cell.day }}', {{ row.period.index }},
+                  document.querySelector('[name=csrfmiddlewaretoken]').value)
+      "
+      :class="over ? 'tt-slot-over' : ''"
+      {% endif %}>
+    {% for entry in cell.entries %}
+    <div class="tt-entry"
+         {% if timetable.status == 'DRAFT' and request.user.is_officer %}
+         draggable="true"
+         @dragstart="$event.dataTransfer.setData('text/plain', '{{ entry.pk }}')"
+         title="Drag to move · {{ entry.course.title }}"
+         {% else %}
+         title="{{ entry.course.title }}"
+         {% endif %}>
+      <div class="tt-entry-code">
+        {{ entry.course.code }}{% if entry.length > 1 %}<span class="tt-entry-span"> ×{{ entry.length }}p</span>{% endif %}
+      </div>
+      <div class="tt-entry-lecturer">{{ entry.lecturer.name }}</div>
+      <div class="tt-entry-venue">{{ entry.venue.name }}</div>
+    </div>
+    {% endfor %}
+  </td>
+  {% endfor %}
+</tr>
+{% endfor %}

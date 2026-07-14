@@ -1,0 +1,19 @@
+{% comment %}
+HTMX response on a successful entry move.
+Primary target: #move-notification (cleared).
+OOB: #tt-grid-body (updated rows), #conflicts-panel (refreshed).
+
+The <table> wrapper is required: browsers refuse to parse <tbody> outside
+a <table>, so HTMX 2.x would silently dump bare <tr> rows into the DOM.
+Wrapping in <table> lets the browser parse the tbody correctly; HTMX then
+finds #tt-grid-body by id and performs the outerHTML swap as expected.
+{% endcomment %}
+<div id="move-notification">
+  <script>htmx.trigger(document.body, 'conflictsRefresh')</script>
+</div>
+
+<table>
+<tbody id="tt-grid-body" hx-swap-oob="outerHTML">
+  {% include "scheduling/partials/_grid_rows.html" %}
+</tbody>
+</table>

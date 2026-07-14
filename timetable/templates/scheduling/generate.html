@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}Generate Timetable{% endblock %}
+{% block nav_schedule %}active{% endblock %}
+
+{% block content %}
+<div style="max-width:600px">
+  <h1 style="font-size:1.3rem;margin-bottom:.25rem">Generate Timetable</h1>
+  <p style="color:var(--ink-soft);font-size:0.8rem;margin-bottom:2rem">
+    Select a session and click Generate. Existing drafts for the session will be replaced.
+  </p>
+
+  <form method="post" id="gen-form">
+    {% csrf_token %}
+    <div class="card border" style="margin-bottom:1.5rem">
+
+      <div style="margin-bottom:1.25rem">
+        <label for="session_id">Academic Session</label>
+        <select name="session_id" id="session_id" required>
+          {% for s in sessions %}
+          <option value="{{ s.pk }}"
+                  {% if active_session and s.pk == active_session.pk %}selected{% endif %}>
+            {{ s }}{% if s.is_active %} ✓{% endif %}
+          </option>
+          {% empty %}
+          <option disabled>No sessions — add one via Admin</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div style="display:flex;align-items:center;gap:.6rem;margin-bottom:1.5rem">
+        <input type="checkbox" name="greedy_only" id="greedy_only" value="1"
+               style="width:auto;accent-color:var(--accent)">
+        <label for="greedy_only"
+               style="text-transform:none;font-size:0.85rem;color:var(--ink);cursor:pointer;margin:0">
+          Greedy-only mode <span style="color:var(--ink-soft)">(faster; no backtracking — use to compare in evaluation)</span>
+        </label>
+      </div>
+
+      <button type="submit" class="btn btn-primary" id="gen-btn"
+              style="width:100%"
+              hx-indicator="#gen-indicator">
+        Generate
+        <span id="gen-indicator" class="htmx-indicator" style="margin-left:.4rem">…</span>
+      </button>
+    </div>
+  </form>
+
+  <p style="font-size:0.8rem;color:var(--ink-soft)">
+    Make sure all courses have at least one lecturer assigned before generating.
+    Courses without lecturers will appear in the unscheduled list.
+  </p>
+</div>
+{% endblock %}

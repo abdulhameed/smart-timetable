@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+{% block title %}Grid — {{ timetable.name }}{% endblock %}
+{% block nav_schedule %}active{% endblock %}
+
+{% block extra_head %}
+<style>
+  .tt-grid { border-collapse: collapse; width: 100%; min-width: 640px; table-layout: fixed; }
+  .tt-grid th, .tt-grid td { border: 1px solid var(--rule); vertical-align: top; }
+  .tt-grid thead th { background: var(--surface); border-bottom: 2px solid var(--rule-strong); text-align: center; }
+  .tt-day-head { font-size: 0.75rem; text-transform: uppercase; letter-spacing: .06em; padding: .4rem .25rem; }
+  .tt-period-cell { background: var(--surface); border-right: 2px solid var(--rule-strong) !important; padding: .3rem .5rem; width: 72px; font-size: 0.7rem; white-space: nowrap; }
+  .tt-slot { padding: .2rem .25rem; min-height: 54px; transition: background var(--dur) var(--ease); }
+  .tt-slot-over { background: var(--accent-tint) !important; }
+  .tt-entry { background: var(--accent-tint); border: 1px solid var(--accent); padding: .25rem .35rem; margin-bottom: .2rem; font-size: 0.72rem; line-height: 1.35; cursor: grab; }
+  .tt-entry:active { opacity: .6; cursor: grabbing; }
+  .tt-entry-code     { font-weight: 600; color: var(--accent); font-size: 0.75rem; }
+  .tt-entry-lecturer { color: #2B5BA8; font-size: 0.7rem; }
+  .tt-entry-venue    { color: #2D6A4F; font-size: 0.7rem; }
+  .tt-entry-span     { font-weight: 400; font-size: 0.65rem; }
+</style>
+{% endblock %}
+
+{% block content %}
+{% csrf_token %}
+
+<!-- Page header -->
+<div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:.75rem;margin-bottom:1.25rem">
+  <div>
+    <a href="{% url 'scheduling:result' timetable.pk %}" style="font-size:0.8rem;color:var(--ink-soft)">← Results</a>
+    <h1 style="font-size:1.2rem;margin:.4rem 0 .2rem">{{ timetable.name }}</h1>
+    <p style="color:var(--ink-soft);font-size:0.8rem">
+      {{ timetable.academic_session }} ·
+      <span class="badge badge-{{ timetable.status|lower }}">{{ timetable.get_status_display }}</span>
+      {% if timetable.status == 'DRAFT' and request.user.is_officer %}
+      · <span style="color:var(--ink-soft)">Drag entries to move · changes validate instantly</span>
+      {% endif %}
+    </p>
+  </div>
+  <div style="display:flex;gap:.5rem">
+    <a href="{% url 'scheduling:list' %}" class="btn" style="font-size:0.8rem">← All Timetables</a>
+    {% if request.user.is_officer %}
+    <a href="{% url 'scheduling:generate' %}" class="btn" style="font-size:0.8rem">Re-generate</a>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Move notification area (HTMX target) -->
+<div id="move-notification" style="min-height:1rem;margin-bottom:.5rem"></div>
+
+<!-- Filter bar -->
+<form method="get" style="display:flex;gap:.4rem;flex-wrap:wrap;margin-bottom:.75rem">
+  <select name="dept" style="font-size:0.8rem;padding:.3rem .4rem;max-width:140px">
+    <option value="">All depts</option>
+    {% for d in departments %}
+    <option value="{{ d.pk }}" {% if dept_filter == d.pk|stringformat:"s" %}selected{% endif %}>{{ d.code }}</option>
+    {% endfor %}
+  </select>
+  <select name="lecturer" style="font-size:0.8rem;padding:.3rem .4rem;max-width:170px">
+    <option value="">All lecturers</option>
+    {% for l in lecturers %}
+    <option value="{{ l.pk }}" {% if lecturer_filter == l.pk|stringformat:"s" %}selected{% endif %}>{{ l.name }}</option>
+    {% endfor %}
+  </select>
+  <select name="venue" style="font-size:0.8rem;padding:.3rem .4rem;max-width:130px">
+    <option value="">All venues</option>
+    {% for v in venues %}
+    <option value="{{ v.pk }}" {% if venue_filter == v.pk|stringformat:"s" %}selected{% endif %}>{{ v.name }}</option>
+    {% endfor %}
+  </select>
+  <button type="submit" class="btn" style="font-size:0.8rem;padding:.3rem .6rem">Filter</button>
+  {% if dept_filter or lecturer_filter or venue_filter %}
+  <a href="{% url 'scheduling:grid' timetable.pk %}" class="btn" style="font-size:0.8rem;padding:.3rem .6rem">Clear</a>
+  {% endif %}
+</form>
+
+<!-- Grid + conflicts panel -->
+<div style="display:flex;gap:1rem;align-items:flex-start">
+
+  <!-- Graph-paper grid -->
+  <div style="flex:1;overflow-x:auto;min-width:0">
+    <table class="tt-grid">
+      <thead>
+        <tr style="border-bottom:2px solid var(--rule-strong)">
+          <th class="tt-period-cell" style="border-right:2px solid var(--rule-strong)">Period</th>
+          {% for _val, label in day_choices %}
+          <th class="tt-day-head">{{ label|slice:":3"|upper }}</th>
+          {% endfor %}
+        </tr>
+      </thead>
+      <tbody id="tt-grid-body">
+        {% include "scheduling/partials/_grid_rows.html" %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Sticky conflicts panel -->
+  <div style="width:240px;flex-shrink:0;position:sticky;top:1rem">
+    <div id="conflicts-panel"
+         hx-get="{% url 'scheduling:conflicts-panel' timetable.pk %}"
+         hx-trigger="conflictsRefresh from:body">
+      {% include "scheduling/partials/_conflicts_panel.html" %}
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+/**
+ * Called by Alpine @drop handlers on each grid cell.
+ * Fires a programmatic HTMX POST to the move endpoint.
+ * Target: #move-notification (outerHTML swap).
+ * On success: OOB update for #tt-grid-body.
+ * On error: error shown in #move-notification.
+ */
+function moveEntry(event, timetablePk, day, periodIndex, csrf) {
+  const eid = event.dataTransfer.getData('text/plain');
+  if (!eid) return;
+  htmx.ajax('POST', '/schedule/' + timetablePk + '/entries/' + eid + '/move/', {
+    target: '#move-notification',
+    swap: 'outerHTML',
+    values: {
+      day: day,
+      period_index: periodIndex,
+      csrfmiddlewaretoken: csrf
+    }
+  });
+}
+</script>
+{% endblock %}

@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}Timetables — Timetable System{% endblock %}
+{% block nav_schedule %}active{% endblock %}
+
+{% block content %}
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem">
+  <div>
+    <h1 style="font-size:1.3rem;margin-bottom:.25rem">Timetables</h1>
+    <p style="color:var(--ink-soft);font-size:0.8rem">All generated timetables.</p>
+  </div>
+  {% if request.user.is_officer %}
+  <a href="{% url 'scheduling:generate' %}" class="btn btn-primary">+ Generate New</a>
+  {% endif %}
+</div>
+
+{% if timetables %}
+<table>
+  <thead>
+    <tr>
+      <th>Name</th><th>Session</th><th>Status</th>
+      <th>Scheduled</th><th>Score</th><th>Time</th><th style="width:140px"></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for t in timetables %}
+    <tr>
+      <td>{{ t.name }}</td>
+      <td style="color:var(--ink-soft)">{{ t.academic_session }}</td>
+      <td><span class="badge badge-{{ t.status|lower }}">{{ t.get_status_display }}</span></td>
+      <td class="mono">{{ t.scheduled_count }}</td>
+      <td class="mono">{{ t.soft_score }}</td>
+      <td class="mono" style="font-size:0.8rem">{{ t.generation_time_ms }}ms</td>
+      <td style="text-align:right">
+        <a href="{% url 'scheduling:result' t.pk %}" class="btn" style="font-size:0.75rem;padding:.2rem .5rem">Results</a>
+        <a href="{% url 'scheduling:grid' t.pk %}" class="btn" style="font-size:0.75rem;padding:.2rem .5rem">Grid</a>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<div class="card border" style="text-align:center;padding:3rem">
+  <p style="color:var(--ink-soft);margin-bottom:1rem">No timetables yet.</p>
+  {% if request.user.is_officer %}
+  <a href="{% url 'scheduling:generate' %}" class="btn btn-primary">Generate your first timetable</a>
+  {% endif %}
+</div>
+{% endif %}
+{% endblock %}

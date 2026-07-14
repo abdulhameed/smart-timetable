@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+{% block title %}Result — {{ timetable.name }}{% endblock %}
+{% block nav_schedule %}active{% endblock %}
+
+{% block content %}
+<div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:1rem;margin-bottom:2rem">
+  <div>
+    <a href="{% url 'scheduling:list' %}" style="font-size:0.8rem;color:var(--ink-soft)">← Timetables</a>
+    <h1 style="font-size:1.3rem;margin:.4rem 0 .2rem">{{ timetable.name }}</h1>
+    <p style="color:var(--ink-soft);font-size:0.8rem">
+      {{ timetable.academic_session }} ·
+      Generated {{ timetable.generated_at|date:"d M Y, H:i" }} ·
+      <span class="badge badge-{{ timetable.status|lower }}">{{ timetable.get_status_display }}</span>
+    </p>
+  </div>
+  <div style="display:flex;gap:.5rem;flex-wrap:wrap">
+    <a href="{% url 'scheduling:grid' timetable.pk %}" class="btn btn-primary">View Grid</a>
+    <a href="{% url 'dashboard:evaluation' timetable.pk %}" class="btn">Evaluation</a>
+    <a href="{% url 'exports:pdf' timetable.pk %}" class="btn" hx-boost="false">PDF</a>
+    <a href="{% url 'exports:excel' timetable.pk %}" class="btn" hx-boost="false">Excel</a>
+    {% if request.user.is_officer %}
+    <a href="{% url 'scheduling:generate' %}" class="btn">Re-generate</a>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Metric cards -->
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1rem;margin-bottom:2rem">
+
+  <div class="card border">
+    <div style="font-size:0.7rem;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-soft);margin-bottom:.4rem">Scheduled</div>
+    <div style="font-size:1.8rem;font-variant-numeric:tabular-nums">
+      {{ timetable.metrics.scheduled_count|default:"—" }}
+    </div>
+    <div style="font-size:0.75rem;color:var(--ink-soft)">sessions placed</div>
+  </div>
+
+  <div class="card border {% if timetable.unscheduled_count > 0 %}" style="border-color:var(--accent){% endif %}">
+    <div style="font-size:0.7rem;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-soft);margin-bottom:.4rem">Unscheduled</div>
+    <div style="font-size:1.8rem;font-variant-numeric:tabular-nums;{% if timetable.unscheduled_count > 0 %}color:var(--accent){% endif %}">
+      {{ timetable.unscheduled_count|default:"0" }}
+    </div>
+    <div style="font-size:0.75rem;color:var(--ink-soft)">sessions not placed</div>
+  </div>
+
+  <div class="card border">
+    <div style="font-size:0.7rem;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-soft);margin-bottom:.4rem">Hard Violations</div>
+    <div style="font-size:1.8rem;font-variant-numeric:tabular-nums">{{ timetable.hard_violations }}</div>
+    <div style="font-size:0.75rem;color:var(--ink-soft)">must be zero to publish</div>
+  </div>
+
+  <div class="card border">
+    <div style="font-size:0.7rem;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-soft);margin-bottom:.4rem">Soft Score</div>
+    <div style="font-size:1.8rem;font-variant-numeric:tabular-nums">{{ timetable.soft_score }}</div>
+    <div style="font-size:0.75rem;color:var(--ink-soft)">lower is better</div>
+  </div>
+
+  <div class="card border">
+    <div style="font-size:0.7rem;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-soft);margin-bottom:.4rem">Gen. Time</div>
+    <div style="font-size:1.8rem;font-variant-numeric:tabular-nums">{{ timetable.generation_time_ms }}</div>
+    <div style="font-size:0.75rem;color:var(--ink-soft)">milliseconds</div>
+  </div>
+
+  <div class="card border">
+    <div style="font-size:0.7rem;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-soft);margin-bottom:.4rem">Venue Utilisation</div>
+    <div style="font-size:1.8rem;font-variant-numeric:tabular-nums">{{ timetable.metrics.venue_utilisation_pct|default:"—" }}%</div>
+    <div style="font-size:0.75rem;color:var(--ink-soft)">of all slots used</div>
+  </div>
+
+  <div class="card border">
+    <div style="font-size:0.7rem;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-soft);margin-bottom:.4rem">Back-to-Back</div>
+    <div style="font-size:1.8rem;font-variant-numeric:tabular-nums">{{ timetable.metrics.back_to_back_count|default:"—" }}</div>
+    <div style="font-size:0.75rem;color:var(--ink-soft)">lecturer adjacencies</div>
+  </div>
+
+</div>
+
+<!-- Per-day load -->
+{% if timetable.metrics.per_day_counts %}
+<div class="card border" style="margin-bottom:1.5rem">
+  <div style="font-size:0.7rem;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-soft);margin-bottom:.75rem">Sessions per day</div>
+  <div style="display:flex;gap:1.5rem;flex-wrap:wrap">
+    {% for day, count in timetable.metrics.per_day_counts.items %}
+    <div style="text-align:center">
+      <div style="font-size:0.7rem;color:var(--ink-soft);margin-bottom:.25rem">{{ day }}</div>
+      <div style="font-size:1.2rem;font-variant-numeric:tabular-nums">{{ count }}</div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+<!-- Unscheduled sessions -->
+{% if timetable.unscheduled_list %}
+<div style="margin-bottom:1.5rem">
+  <h2 style="font-size:1rem;margin-bottom:.75rem;color:var(--accent)">
+    Unscheduled Sessions ({{ timetable.unscheduled_list|length }})
+  </h2>
+  <table>
+    <thead>
+      <tr><th>Course</th><th>Reason</th></tr>
+    </thead>
+    <tbody>
+      {% for u in timetable.unscheduled_list %}
+      <tr>
+        <td class="mono">{{ u.course_code }}</td>
+        <td style="color:var(--ink-soft)">{{ u.reason }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="alert alert-success" style="margin-bottom:1.5rem">
+  All sessions were scheduled successfully. Zero unscheduled sessions.
+</div>
+{% endif %}
+
+{% endblock %}
