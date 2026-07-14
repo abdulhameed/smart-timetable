@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}Departments — Timetable System{% endblock %}
+
+{% block content %}
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem">
+  <div>
+    <h1 style="font-size:1.3rem;margin-bottom:.25rem">Departments</h1>
+    <p style="color:var(--ink-soft);font-size:0.8rem">Manage faculty departments.</p>
+  </div>
+  <button class="btn btn-primary"
+          hx-get="{% url 'core:department-create' %}"
+          hx-target="#modal">+ New Department</button>
+</div>
+
+<form method="get" style="margin-bottom:1rem">
+  <div style="display:flex;gap:.5rem;max-width:400px">
+    <input type="text" name="q" value="{{ q }}" placeholder="Search departments…" style="flex:1">
+    <button type="submit" class="btn">Search</button>
+    {% if q %}<a href="{% url 'core:department-list' %}" class="btn">Clear</a>{% endif %}
+  </div>
+</form>
+
+<div hx-get="{% url 'core:department-table' %}"
+     hx-trigger="refreshDepartments from:body"
+     hx-swap="innerHTML">
+  {% include "core/partials/_department_table.html" %}
+</div>
+
+<div id="modal"></div>
+{% endblock %}

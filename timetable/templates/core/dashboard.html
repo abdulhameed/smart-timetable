@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — Timetable System{% endblock %}
+{% block nav_dashboard %}active{% endblock %}
+
+{% block content %}
+<div style="margin-bottom:2rem">
+  <h1 style="font-size:1.4rem;margin-bottom:.25rem">Dashboard</h1>
+  <p style="color:var(--ink-soft);font-size:0.85rem">
+    {% if active_session %}
+      Active session: <strong>{{ active_session }}</strong>
+    {% else %}
+      No active session. <a href="{% url 'admin:core_academicsession_add' %}">Create one →</a>
+    {% endif %}
+  </p>
+</div>
+
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:1rem;margin-bottom:2.5rem">
+  <a href="{% url 'catalog:course-list' %}" style="text-decoration:none">
+    <div class="card border" style="transition:box-shadow var(--dur) var(--ease)" onmouseenter="this.style.boxShadow='var(--shadow)'" onmouseleave="this.style.boxShadow=''">
+      <div style="font-size:0.7rem;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-soft);margin-bottom:.5rem">Courses</div>
+      <div style="font-size:2rem;font-variant-numeric:tabular-nums">{{ course_count }}</div>
+    </div>
+  </a>
+  <a href="{% url 'catalog:lecturer-list' %}" style="text-decoration:none">
+    <div class="card border" onmouseenter="this.style.boxShadow='var(--shadow)'" onmouseleave="this.style.boxShadow=''">
+      <div style="font-size:0.7rem;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-soft);margin-bottom:.5rem">Lecturers</div>
+      <div style="font-size:2rem;font-variant-numeric:tabular-nums">{{ lecturer_count }}</div>
+    </div>
+  </a>
+  <a href="{% url 'catalog:venue-list' %}" style="text-decoration:none">
+    <div class="card border" onmouseenter="this.style.boxShadow='var(--shadow)'" onmouseleave="this.style.boxShadow=''">
+      <div style="font-size:0.7rem;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-soft);margin-bottom:.5rem">Venues</div>
+      <div style="font-size:2rem;font-variant-numeric:tabular-nums">{{ venue_count }}</div>
+    </div>
+  </a>
+  <div class="card border">
+    <div style="font-size:0.7rem;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-soft);margin-bottom:.5rem">Timetable</div>
+    <div style="font-size:0.9rem;color:var(--ink-soft)">No drafts yet</div>
+  </div>
+</div>
+
+<div style="border-top:1px solid var(--rule);padding-top:1.5rem">
+  <h2 style="font-size:1rem;margin-bottom:1rem">Quick links</h2>
+  <div style="display:flex;gap:.75rem;flex-wrap:wrap">
+    <a href="{% url 'catalog:course-list' %}" class="btn">Courses</a>
+    <a href="{% url 'catalog:lecturer-list' %}" class="btn">Lecturers</a>
+    <a href="{% url 'catalog:venue-list' %}" class="btn">Venues</a>
+    {% if request.user.is_admin %}
+    <a href="{% url 'core:department-list' %}" class="btn">Departments</a>
+    <a href="{% url 'core:time-config' %}" class="btn">Time Config</a>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

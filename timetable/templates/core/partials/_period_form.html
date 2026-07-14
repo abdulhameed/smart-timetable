@@ -1,0 +1,25 @@
+<div style="position:fixed;inset:0;background:rgba(30,30,28,.45);z-index:50;
+            display:flex;align-items:center;justify-content:center;padding:1rem"
+     x-data="{}"
+     @keydown.escape.window="document.getElementById('modal').innerHTML=''">
+  <div class="card shadow" style="width:100%;max-width:420px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem">
+      <h2 style="font-size:1.1rem">New Period</h2>
+      <button type="button" class="btn" style="padding:.2rem .5rem"
+              @click="document.getElementById('modal').innerHTML=''">✕</button>
+    </div>
+    <form hx-post="{% url 'core:period-create' %}" hx-target="#modal">
+      {% csrf_token %}
+      {% include "partials/_form_field.html" with field=form.index %}
+      {% include "partials/_form_field.html" with field=form.label %}
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem">
+        {% include "partials/_form_field.html" with field=form.start_time %}
+        {% include "partials/_form_field.html" with field=form.end_time %}
+      </div>
+      <div style="display:flex;gap:.5rem;margin-top:1.5rem">
+        <button type="submit" class="btn btn-primary">Add Period</button>
+        <button type="button" class="btn" @click="document.getElementById('modal').innerHTML=''">Cancel</button>
+      </div>
+    </form>
+  </div>
+</div>

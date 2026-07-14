@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}Time Configuration — Timetable System{% endblock %}
+
+{% block content %}
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem">
+  <div>
+    <h1 style="font-size:1.3rem;margin-bottom:.25rem">Time Configuration</h1>
+    <p style="color:var(--ink-soft);font-size:0.8rem">Define working periods (rows in the timetable grid).</p>
+  </div>
+  <button class="btn btn-primary"
+          hx-get="{% url 'core:period-create' %}"
+          hx-target="#modal">+ Add Period</button>
+</div>
+
+<div hx-get="{% url 'core:time-config' %}"
+     hx-trigger="refreshPeriods from:body"
+     hx-swap="none"
+     id="periods-region">
+  {% if periods %}
+  <table>
+    <thead>
+      <tr>
+        <th>#</th><th>Label</th><th>Start</th><th>End</th><th style="width:80px"></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for p in periods %}
+      <tr>
+        <td class="mono">{{ p.index }}</td>
+        <td>{{ p.label }}</td>
+        <td class="mono">{{ p.start_time|time:"H:i" }}</td>
+        <td class="mono">{{ p.end_time|time:"H:i" }}</td>
+        <td>
+          <button class="btn btn-danger" style="font-size:0.75rem;padding:.2rem .5rem"
+                  hx-post="{% url 'core:period-delete' p.pk %}"
+                  hx-confirm="Delete period {{ p.index }}?"
+                  hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>Del</button>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p style="color:var(--ink-soft);font-size:0.875rem">No periods defined. Run <code>python manage.py seed</code> to create defaults.</p>
+  {% endif %}
+</div>
+
+<div id="modal"></div>
+{% endblock %}

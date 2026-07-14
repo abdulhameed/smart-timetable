@@ -1,0 +1,30 @@
+{% if departments %}
+<table>
+  <thead>
+    <tr>
+      <th>Code</th>
+      <th>Name</th>
+      <th style="width:120px"></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for dept in departments %}
+    <tr>
+      <td class="mono">{{ dept.code }}</td>
+      <td>{{ dept.name }}</td>
+      <td style="text-align:right">
+        <button class="btn" style="font-size:0.75rem;padding:.2rem .5rem"
+                hx-get="{% url 'core:department-edit' dept.pk %}"
+                hx-target="#modal">Edit</button>
+        <button class="btn btn-danger" style="font-size:0.75rem;padding:.2rem .5rem"
+                hx-post="{% url 'core:department-delete' dept.pk %}"
+                hx-confirm="Delete {{ dept.code }}?"
+                hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>Del</button>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p style="color:var(--ink-soft);font-size:0.875rem">No departments yet.</p>
+{% endif %}
