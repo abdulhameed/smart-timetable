@@ -31,23 +31,25 @@ def generate(
     all_placements = _build_candidate_pool(days, periods_per_day, venues)
     schedule: list[ScheduledSession] = []
     unscheduled: list[dict] = []
+    placement_scores: list[int] = []  # soft-penalty of each committed placement, in schedule order
 
     # MRV ordering: sort sessions by domain size ascending, degree (lecturer load) descending
     ordered = _mrv_order(sessions, all_placements, periods_per_day)
 
     if greedy_only:
-        _greedy_assign(ordered, all_placements, schedule, unscheduled, periods_per_day)
+        _greedy_assign(ordered, all_placements, schedule, unscheduled, periods_per_day, placement_scores)
     else:
-        _backtrack(ordered, 0, all_placements, schedule, unscheduled, periods_per_day, [0])
+        _backtrack(ordered, 0, all_placements, schedule, unscheduled, periods_per_day, [0], placement_scores)
 
     elapsed_ms = int((time.perf_counter() - start) * 1000)
     metrics = _compute_metrics(schedule, unscheduled, days, periods_per_day, venues, elapsed_ms)
+    metrics["placement_scores"] = list(placement_scores)
 
     return GenerationResult(
         entries=schedule,
         unscheduled=unscheduled,
         hard_violations=0,  # hard_valid_placements guarantees this
-        soft_score=sum(e.get("soft_penalty", 0) for e in metrics.get("_placement_scores", [])),
+        soft_score=sum(placement_scores),
         metrics=metrics,
     )
 
@@ -90,6 +92,7 @@ def _greedy_assign(
     schedule: list[ScheduledSession],
     unscheduled: list[dict],
     periods_per_day: int,
+    placement_scores: list[int],
 ) -> None:
     dept_day_counts: dict[str, int] = {}
 
@@ -104,8 +107,12 @@ def _greedy_assign(
             unscheduled.append({"session": session, "reason": reason})
             continue
 
-        best = min(valid, key=lambda p: soft_score(session, p, schedule, dept_day_counts, periods_per_day))
+        best, best_score = min(
+            ((p, soft_score(session, p, schedule, dept_day_counts, periods_per_day)) for p in valid),
+            key=lambda t: t[1],
+        )
         schedule.append(ScheduledSession(session=session, placement=best))
+        placement_scores.append(best_score)
         dept_day_counts[best.day] = dept_day_counts.get(best.day, 0) + 1
 
 
@@ -121,13 +128,14 @@ def _backtrack(
     unscheduled: list[dict],
     periods_per_day: int,
     attempts: list[int],  # mutable counter wrapped in list
+    placement_scores: list[int],
 ) -> bool:
     if index == len(sessions):
         return True
 
     if attempts[0] > MAX_ATTEMPTS:
         # Exceeded attempt budget — greedily assign the rest
-        _greedy_assign(sessions[index:], all_placements, schedule, unscheduled, periods_per_day)
+        _greedy_assign(sessions[index:], all_placements, schedule, unscheduled, periods_per_day, placement_scores)
         return True
 
     session = sessions[index]
@@ -135,28 +143,51 @@ def _backtrack(
     valid = hard_valid_placements(session, candidates, schedule, periods_per_day)
 
     if not valid:
-        reason = _unschedulable_reason(session, candidates, schedule, periods_per_day)
-        unscheduled.append({"session": session, "reason": reason})
+        # Would this session fail even against an empty schedule (wrong venue
+        # type system-wide, no venue with enough capacity, or the lecturer is
+        # unavailable for every structurally possible slot)? If so, no amount
+        # of reconsidering earlier sessions can ever fix it, so accept it as
+        # unscheduled immediately rather than spending the shared attempt
+        # budget backtracking into choices that were never the cause.
+        structurally_impossible = not hard_valid_placements(session, candidates, [], periods_per_day)
         attempts[0] += 1
-        return _backtrack(sessions, index + 1, all_placements, schedule, unscheduled, periods_per_day, attempts)
+        if structurally_impossible:
+            reason = _unschedulable_reason(session, candidates, schedule, periods_per_day)
+            unscheduled.append({"session": session, "reason": reason})
+            return _backtrack(sessions, index + 1, all_placements, schedule, unscheduled, periods_per_day, attempts, placement_scores)
+        # Otherwise every slot is merely occupied by an earlier session's
+        # current choice — that IS fixable by a different earlier choice, so
+        # signal failure upward instead of accepting it here.
+        return False
 
     dept_day_counts: dict[str, int] = {}
     for e in schedule:
         dept_day_counts[e.placement.day] = dept_day_counts.get(e.placement.day, 0) + 1
 
-    sorted_valid = sorted(valid, key=lambda p: soft_score(session, p, schedule, dept_day_counts, periods_per_day))
+    scored_valid = sorted(
+        ((p, soft_score(session, p, schedule, dept_day_counts, periods_per_day)) for p in valid),
+        key=lambda t: t[1],
+    )
 
-    for placement in sorted_valid:
+    for placement, score in scored_valid:
         schedule.append(ScheduledSession(session=session, placement=placement))
+        placement_scores.append(score)
+        unscheduled_mark = len(unscheduled)  # snapshot: undo anything the failed branch logged, not just the schedule
         attempts[0] += 1
-        if _backtrack(sessions, index + 1, all_placements, schedule, unscheduled, periods_per_day, attempts):
+        if _backtrack(sessions, index + 1, all_placements, schedule, unscheduled, periods_per_day, attempts, placement_scores):
             return True
         schedule.pop()
+        placement_scores.pop()
+        del unscheduled[unscheduled_mark:]
+        if attempts[0] > MAX_ATTEMPTS:
+            break
 
-    # No candidate led to a complete solution — leave unscheduled and continue
+    # Every candidate here led to a dead end further on, or the shared
+    # attempt budget ran out while trying them — accept this session as
+    # unscheduled and let the search continue from the next one.
     reason = _unschedulable_reason(session, candidates, schedule, periods_per_day)
     unscheduled.append({"session": session, "reason": reason})
-    return _backtrack(sessions, index + 1, all_placements, schedule, unscheduled, periods_per_day, attempts)
+    return _backtrack(sessions, index + 1, all_placements, schedule, unscheduled, periods_per_day, attempts, placement_scores)
 
 
 # ---------------------------------------------------------------------------
