@@ -174,6 +174,64 @@ def test_backtracking_schedules_at_least_as_many_as_greedy():
     assert len(bt.entries) >= len(greedy.entries)
 
 
+def _greedy_trap_sessions():
+    """One venue, two periods on MON. Greedy puts A in P1 (first lowest-score
+    slot), leaving B — whose lecturer is unavailable in P2 — with nowhere to go.
+    The only full solution is A→P2, B→P1, which requires undoing A's choice.
+
+    C sits between them in MRV order (all domains and loads tie, so input order
+    is kept) and is structurally impossible: it lands in `unscheduled` inside
+    the abandoned A→P1 branch, so a missing undo would log it twice.
+    """
+    return [
+        make_session(id=1, course_id=1, course_code="A", lecturer_id=1),
+        make_session(id=3, course_id=3, course_code="C", lecturer_id=3,
+                     unavailable=[("MON", 1), ("MON", 2)]),
+        make_session(id=2, course_id=2, course_code="B", lecturer_id=2,
+                     unavailable=[("MON", 2)]),
+    ]
+
+
+def test_greedy_falls_into_trap():
+    """Control for the test below: greedy alone cannot schedule B."""
+    result = generate(_greedy_trap_sessions(), ["MON"], 2, venues_lh(1), greedy_only=True)
+    unscheduled_ids = {u["session"].id for u in result.unscheduled}
+    assert unscheduled_ids == {2, 3}
+
+
+def test_backtracking_undoes_earlier_choice():
+    """Backtracking must reconsider A's placement so B can be scheduled."""
+    result = generate(_greedy_trap_sessions(), ["MON"], 2, venues_lh(1))
+    placed = {e.session.id: e.placement.start_period for e in result.entries}
+    assert placed == {1: 2, 2: 1}
+    assert [u["session"].id for u in result.unscheduled] == [3]
+
+
+def test_backtracking_accounts_for_each_session_exactly_once():
+    """No session may appear twice, or in both entries and unscheduled."""
+    sessions = _greedy_trap_sessions()
+    result = generate(sessions, ["MON"], 2, venues_lh(1))
+    ids = [e.session.id for e in result.entries] + [u["session"].id for u in result.unscheduled]
+    assert sorted(ids) == sorted(s.id for s in sessions)
+
+
+# ---------------------------------------------------------------------------
+# GenerationResult.soft_score — must reflect committed placements
+# ---------------------------------------------------------------------------
+
+@pytest.mark.parametrize("greedy_only", [True, False])
+def test_result_soft_score_reflects_forced_penalty(greedy_only):
+    """Lecturer only free in P7–P8, so the session must take a late period (S4).
+
+    Best placement is P7: S4 penalty = 1 * (7 - 7 + 1) = 1.
+    """
+    s = make_session(id=1, unavailable=[("MON", p) for p in range(1, 7)])
+    result = generate([s], ["MON"], 8, venues_lh(1), greedy_only=greedy_only)
+    assert result.entries[0].placement.start_period == 7
+    assert result.soft_score == SOFT_WEIGHTS["S4_late_period"]
+    assert result.soft_score == sum(result.metrics["placement_scores"])
+
+
 # ---------------------------------------------------------------------------
 # Soft-constraint scoring — S2 (day overload) and S3 (idle gap)
 # ---------------------------------------------------------------------------
